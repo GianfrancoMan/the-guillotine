@@ -1,5 +1,6 @@
 package org.gfmanca.the_guillotine.service;
 
+import jakarta.persistence.EntityManager;
 import org.gfmanca.the_guillotine.domain.entity.Quiz;
 import org.gfmanca.the_guillotine.domain.entity.Submission;
 import org.gfmanca.the_guillotine.domain.entity.User;
@@ -30,12 +31,15 @@ public class SubmissionService {
     private final SubmissionRepository submissionRepository;
     private final QuizRepository quizRepository;
     private final UserRepository userRepository;
+    private final EntityManager entityManager;
 
     //@Autowired not required because there is only one constructor and injection is done by Spring.
-    public SubmissionService( SubmissionRepository submissionRepository, QuizRepository quizRepository, UserRepository userRepository) {
+    public SubmissionService
+        (SubmissionRepository submissionRepository, QuizRepository quizRepository, UserRepository userRepository, EntityManager entityManager) {
         this.submissionRepository = submissionRepository;
         this.quizRepository = quizRepository;
         this.userRepository = userRepository;
+        this.entityManager = entityManager;
     }
 
     /**
@@ -69,7 +73,11 @@ public class SubmissionService {
 
         try {
 
-            return submissionRepository.save(submission);
+            Submission savedSubmission = submissionRepository.saveAndFlush(submission);
+
+            entityManager.refresh(savedSubmission);
+
+            return savedSubmission;
 
         } catch (DataIntegrityViolationException ex) {
 

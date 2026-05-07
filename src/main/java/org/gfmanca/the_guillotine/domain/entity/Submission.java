@@ -47,7 +47,7 @@ public class Submission {
     @Column(name = "answer", nullable = false, length = 100)
     private String answer;
 
-    @Column(name = "submitted_at", nullable = false, updatable = false)
+    @Column(name = "submitted_at", nullable = false, updatable = false, insertable = false)
     private LocalDateTime submittedAt;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
