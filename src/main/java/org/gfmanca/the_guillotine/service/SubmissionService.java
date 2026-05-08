@@ -14,7 +14,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.Locale;
 
 /**
@@ -97,13 +96,7 @@ public class SubmissionService {
      */
     private void validateQuizAvailability(Quiz quiz) {
 
-        LocalDateTime now = LocalDateTime.now();
-
         if (quiz.getStatus() != QuizStatus.OPEN) {
-            throw new QuizClosedException(quiz.getId());
-        }
-
-        if (now.isBefore(quiz.getStartTime()) || now.isAfter(quiz.getEndTime())) {
             throw new QuizClosedException(quiz.getId());
         }
     }

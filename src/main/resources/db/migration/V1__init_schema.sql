@@ -8,8 +8,6 @@ CREATE TABLE quizzes (
                       id BIGSERIAL PRIMARY KEY,
                       name VARCHAR(255) NOT NULL,
                       status VARCHAR(20) NOT NULL,
-                      start_time TIMESTAMP NOT NULL,
-                      end_time TIMESTAMP NOT NULL,
                       correct_answer VARCHAR(100),
                       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
