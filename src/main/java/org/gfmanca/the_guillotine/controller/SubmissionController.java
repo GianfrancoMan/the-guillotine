@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import org.gfmanca.the_guillotine.domain.entity.Submission;
 import org.gfmanca.the_guillotine.dto.SubmissionRequestDto;
 import org.gfmanca.the_guillotine.dto.SubmissionResponseDto;
+import org.gfmanca.the_guillotine.dto.WinnerResponseDto;
 import org.gfmanca.the_guillotine.service.SubmissionService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,8 +12,8 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * Controller for handling submission-related HTTP requests.
- * This controller provides endpoints for users to submit answers
- * to quizzes and retrieve relevant submission data.
+ * Provides endpoints to create quiz submissions and determine
+ * the winning submission for a quiz using the correct answer.
  */
 @RestController
 @RequestMapping("/api/submissions")
@@ -57,5 +58,13 @@ public class SubmissionController {
                 submission.getAnswer(),
                 submission.getSubmittedAt()
         );
+    }
+
+    @GetMapping("/winner")
+    public ResponseEntity<WinnerResponseDto> findWinner(@RequestParam Long quizId, @RequestParam String correctAnswer) {
+
+        WinnerResponseDto response = submissionService.findWinner( quizId, correctAnswer);
+
+        return ResponseEntity.ok(response);
     }
 }

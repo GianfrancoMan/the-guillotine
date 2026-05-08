@@ -5,10 +5,8 @@ import org.gfmanca.the_guillotine.domain.entity.Quiz;
 import org.gfmanca.the_guillotine.domain.entity.Submission;
 import org.gfmanca.the_guillotine.domain.entity.User;
 import org.gfmanca.the_guillotine.domain.enums.QuizStatus;
-import org.gfmanca.the_guillotine.exception.DuplicateSubmissionException;
-import org.gfmanca.the_guillotine.exception.QuizClosedException;
-import org.gfmanca.the_guillotine.exception.QuizNotFoundException;
-import org.gfmanca.the_guillotine.exception.UserNotFoundException;
+import org.gfmanca.the_guillotine.dto.WinnerResponseDto;
+import org.gfmanca.the_guillotine.exception.*;
 import org.gfmanca.the_guillotine.repository.QuizRepository;
 import org.gfmanca.the_guillotine.repository.SubmissionRepository;
 import org.gfmanca.the_guillotine.repository.UserRepository;
@@ -20,10 +18,10 @@ import java.time.LocalDateTime;
 import java.util.Locale;
 
 /**
- * Service class for handling quiz submission logic.
- * This service is responsible for managing user submissions for quizzes,
- * validating quiz statuses, handling constraints, and ensuring proper
- * interaction with the underlying data repositories.
+ * Service class for handling quiz submission and winner resolution logic.
+ * This service manages answer submissions, validates quiz availability,
+ * normalizes submitted answers, handles duplicate submission constraints,
+ * and determines the first user who submitted the correct answer for a quiz.
  */
 @Service
 public class SubmissionService {
@@ -133,5 +131,37 @@ public class SubmissionService {
     private boolean isUniqueConstraintViolation(DataIntegrityViolationException ex) {
 
         return ex.getMessage() != null && ex.getMessage().contains("uq_user_quiz");
+    }
+
+    /**
+     * Finds the winner of a quiz based on the provided quiz ID and correct answer.
+     * Retrieves the first submission with the correct answer, ordered by submission time and ID.
+     *
+     * @param quizId the identifier of the quiz for which the winner is being determined
+     * @param correctAnswer the correct answer to the quiz, used to validate submissions
+     * @return a {@code WinnerResponseDto} containing the details of the winning submission,
+     *         including the quiz ID, normalized correct answer, user ID, username, submission ID,
+     *         and submission timestamp
+     * @throws QuizNotFoundException if the quiz with the given ID does not exist
+     * @throws NoWinnerFoundException if no submission matches the quiz ID and correct answer
+     */
+    @Transactional(readOnly = true)
+    public WinnerResponseDto findWinner(Long quizId, String correctAnswer) {
+
+        Quiz quiz = quizRepository.findById(quizId).orElseThrow(() -> new QuizNotFoundException(quizId));
+
+        String normalizedAnswer =  normalizeAnswer(correctAnswer);
+
+        Submission winningSubmission =
+                submissionRepository.findFirstByQuizIdAndAnswerOrderBySubmittedAtAscIdAsc(quizId, normalizedAnswer)
+                        .orElseThrow(() -> new NoWinnerFoundException(quizId, normalizedAnswer));
+
+        return new WinnerResponseDto(
+                quiz.getId(),
+                normalizedAnswer,
+                winningSubmission.getUser().getId(),
+                winningSubmission.getUser().getUsername(),
+                winningSubmission.getId(),
+                winningSubmission.getSubmittedAt());
     }
 }
