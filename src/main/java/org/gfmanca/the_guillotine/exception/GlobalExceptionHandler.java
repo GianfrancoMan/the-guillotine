@@ -114,6 +114,20 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles cases where a username already exists during user creation or registration attempts.
+     * This method listens for the {@link UsernameAlreadyExistsException} and generates a standardized
+     * 409 Conflict error response indicating that the username is already in use.
+     *
+     * @param ex the exception thrown when the username is found to already exist
+     * @return a response entity containing the error response with HTTP status 409 and a detailed message
+     */
+    @ExceptionHandler(UsernameAlreadyExistsException.class)
+    public ResponseEntity<?> handleUsernameAlreadyExists(UsernameAlreadyExistsException ex ) {
+
+        return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    /**
      * Builds a consistent error response body.
      *
      * @param status the HTTP status to return
