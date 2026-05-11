@@ -2,9 +2,10 @@ package org.gfmanca.the_guillotine.service;
 
 import jakarta.persistence.EntityManager;
 import org.gfmanca.the_guillotine.domain.entity.User;
+import org.gfmanca.the_guillotine.domain.enums.UserRole;
 import org.gfmanca.the_guillotine.dto.UserResponseDto;
-import org.gfmanca.the_guillotine.exception.UsernameAlreadyExistsException;
 import org.gfmanca.the_guillotine.exception.UserNotFoundException;
+import org.gfmanca.the_guillotine.exception.UsernameAlreadyExistsException;
 import org.gfmanca.the_guillotine.repository.UserRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -47,6 +48,7 @@ public class UserService {
         User user = new User();
 
         user.setUsername(normalizeUsername(username));
+        user.setRole(UserRole.PLAYER);
 
         try {
             User savedUser = userRepository.saveAndFlush(user);
@@ -107,6 +109,7 @@ public class UserService {
         return new UserResponseDto(
                 user.getId(),
                 user.getUsername(),
+                user.getRole(),
                 user.getCreatedAt()
         );
     }
