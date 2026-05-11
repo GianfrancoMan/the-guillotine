@@ -54,7 +54,7 @@ public class Quiz {
     @Column(name = "correct_answer", length = 100)
     private String correctAnswer;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @OneToMany(mappedBy = "quiz", fetch = FetchType.LAZY)

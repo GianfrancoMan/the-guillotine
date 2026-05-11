@@ -30,7 +30,7 @@ public class SubmissionService {
     private final UserRepository userRepository;
     private final EntityManager entityManager;
 
-    //@Autowired not required because there is only one constructor and injection is done by Spring.
+    //@Autowired is not required because there is only one constructor and injection is done by Spring.
     public SubmissionService
         (SubmissionRepository submissionRepository, QuizRepository quizRepository, UserRepository userRepository, EntityManager entityManager) {
         this.submissionRepository = submissionRepository;
@@ -127,34 +127,37 @@ public class SubmissionService {
     }
 
     /**
-     * Finds the winner of a quiz based on the provided quiz ID and correct answer.
-     * Retrieves the first submission with the correct answer, ordered by submission time and ID.
+     * Finds and returns the winner of a quiz based on the first correct submission.
+     * The method retrieves the quiz by its ID and determines the first user
+     * who submitted the correct answer, ordered by submission time and ID.
      *
      * @param quizId the identifier of the quiz for which the winner is being determined
-     * @param correctAnswer the correct answer to the quiz, used to validate submissions
-     * @return a {@code WinnerResponseDto} containing the details of the winning submission,
-     *         including the quiz ID, normalized correct answer, user ID, username, submission ID,
-     *         and submission timestamp
+     * @return a {@code WinnerResponseDto} containing the winner's information, including the quiz ID,
+     *         correct answer, winner's user ID, username, submission ID, and submission timestamp
      * @throws QuizNotFoundException if the quiz with the given ID does not exist
-     * @throws NoWinnerFoundException if no submission matches the quiz ID and correct answer
+     * @throws CorrectAnswerNotSetException if the correct answer for the quiz has not been set
+     * @throws NoWinnerFoundException if no submission matches the correct answer for the quiz
      */
     @Transactional(readOnly = true)
-    public WinnerResponseDto findWinner(Long quizId, String correctAnswer) {
+    public WinnerResponseDto findWinner(Long quizId) {
 
         Quiz quiz = quizRepository.findById(quizId).orElseThrow(() -> new QuizNotFoundException(quizId));
 
-        String normalizedAnswer =  normalizeAnswer(correctAnswer);
+        if (quiz.getCorrectAnswer() == null || quiz.getCorrectAnswer().isBlank()) {
+            throw new CorrectAnswerNotSetException(quizId);
+        }
 
         Submission winningSubmission =
-                submissionRepository.findFirstByQuizIdAndAnswerOrderBySubmittedAtAscIdAsc(quizId, normalizedAnswer)
-                        .orElseThrow(() -> new NoWinnerFoundException(quizId, normalizedAnswer));
+                submissionRepository.findFirstByQuizIdAndAnswerOrderBySubmittedAtAscIdAsc(quizId, quiz.getCorrectAnswer())
+                        .orElseThrow(() -> new NoWinnerFoundException(quizId,  quiz.getCorrectAnswer()));
 
         return new WinnerResponseDto(
                 quiz.getId(),
-                normalizedAnswer,
+                quiz.getCorrectAnswer(),
                 winningSubmission.getUser().getId(),
                 winningSubmission.getUser().getUsername(),
                 winningSubmission.getId(),
-                winningSubmission.getSubmittedAt());
+                winningSubmission.getSubmittedAt()
+        );
     }
 }

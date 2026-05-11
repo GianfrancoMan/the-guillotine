@@ -60,11 +60,8 @@ public class SubmissionController {
         );
     }
 
-    @GetMapping("/winner")
-    public ResponseEntity<WinnerResponseDto> findWinner(@RequestParam Long quizId, @RequestParam String correctAnswer) {
-
-        WinnerResponseDto response = submissionService.findWinner( quizId, correctAnswer);
-
-        return ResponseEntity.ok(response);
+    @GetMapping("/winner/{quizId}")
+    public ResponseEntity<WinnerResponseDto> findWinner(@PathVariable Long quizId) {
+        return ResponseEntity.ok(submissionService.findWinner( quizId));
     }
 }

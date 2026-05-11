@@ -99,6 +99,21 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles cases where an attempt is made to process a quiz without setting a correct answer.
+     *
+     * This method listens for the {@link CorrectAnswerNotSetException} and generates a standardized
+     * 400 Bad Request error response indicating that the quiz is in an invalid or incomplete state.
+     *
+     * @param ex the exception thrown when the correct answer is not set for a quiz
+     * @return a response entity containing the error response with HTTP status 400 and a detailed message
+     */
+    @ExceptionHandler(CorrectAnswerNotSetException.class)
+    public ResponseEntity<?> handleCorrectAnswerNotSet(CorrectAnswerNotSetException ex) {
+
+        return buildErrorResponse(HttpStatus.BAD_REQUEST,  ex.getMessage());
+    }
+
+    /**
      * Builds a consistent error response body.
      *
      * @param status the HTTP status to return
