@@ -8,6 +8,7 @@ import org.gfmanca.the_guillotine.exception.UserNotFoundException;
 import org.gfmanca.the_guillotine.exception.UsernameAlreadyExistsException;
 import org.gfmanca.the_guillotine.repository.UserRepository;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,30 +25,34 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 
     private final UserRepository userRepository;
-
     private final EntityManager entityManager;
+    private final PasswordEncoder passwordEncoder;
 
     //only one constructor, @Autowired is not required.
-    public UserService(UserRepository userRepository, EntityManager entityManager) {
+    public UserService(UserRepository userRepository, EntityManager entityManager, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.entityManager = entityManager;
+        this.passwordEncoder = passwordEncoder;
     }
 
-    /**
-     * Creates a new user in the system with the provided username.
-     * The username is normalized before being saved. If the username
-     * already exists in the system, an exception is thrown.
-     *
-     * @param username the desired username for the new user, which must be unique
-     * @return a {@code UserResponseDto} containing the details of the newly created user
-     * @throws UsernameAlreadyExistsException if a user with the given username already exists
-     */
-    @Transactional
-    public UserResponseDto createUser(String username) {
+/**
+ * Creates a new user in the system with the provided username and password.
+ * The username is normalized before being saved, the password is encoded,
+ * and the user is assigned the default {@code PLAYER} role. If the username
+ * already exists in the system, an exception is thrown.
+ *
+ * @param username the desired username for the new user, which must be unique
+ * @param password the raw password for the new user, which will be encoded before being saved
+ * @return a {@code UserResponseDto} containing the details of the newly created user
+ * @throws UsernameAlreadyExistsException if a user with the given username already exists
+ */
+@Transactional
+public UserResponseDto createUser(String username, String password) {
 
         User user = new User();
 
         user.setUsername(normalizeUsername(username));
+        user.setPassword(passwordEncoder.encode(password));
         user.setRole(UserRole.PLAYER);
 
         try {

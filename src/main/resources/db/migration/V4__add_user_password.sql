@@ -1,0 +1,5 @@
+ALTER TABLE users ADD COLUMN password VARCHAR(255);
+
+UPDATE users SET password = '$2a$10$DowJonesIndustrialAverage123456789012345678901234';
+
+ALTER TABLE users  ALTER COLUMN password SET NOT NULL;
