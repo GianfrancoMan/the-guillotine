@@ -4,7 +4,7 @@ import jakarta.persistence.EntityManager;
 import org.gfmanca.the_guillotine.domain.entity.User;
 import org.gfmanca.the_guillotine.domain.enums.UserRole;
 import org.gfmanca.the_guillotine.dto.UserResponseDto;
-import org.gfmanca.the_guillotine.exception.UserNotFoundException;
+import org.gfmanca.the_guillotine.exception.UserIdNotFoundException;
 import org.gfmanca.the_guillotine.exception.UsernameAlreadyExistsException;
 import org.gfmanca.the_guillotine.repository.UserRepository;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -76,13 +76,13 @@ public UserResponseDto createUser(String username, String password) {
      *
      * @param userId the unique identifier of the user to retrieve
      * @return a {@code UserResponseDto} containing the user's details
-     * @throws UserNotFoundException if no user is found with the given ID
+     * @throws UserIdNotFoundException if no user is found with the given ID
      */
     @Transactional(readOnly = true)
     public UserResponseDto getUserById(Long userId) {
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() ->  new UserNotFoundException(userId));
+                .orElseThrow(() ->  new UserIdNotFoundException(userId));
 
         return mapToDto(user);
     }

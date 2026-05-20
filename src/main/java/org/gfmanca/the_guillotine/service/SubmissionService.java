@@ -40,26 +40,27 @@ public class SubmissionService {
     }
 
     /**
+    /**
      * Submits a user's answer for a given quiz.
-     * Ensures that the quiz is available and open for submissions before saving the answer.
-     * Handles duplicate submissions and validates constraints.
+     * Ensures that the quiz exists and is open for submissions before saving the answer.
+     * Resolves the submitting user by username, normalizes the answer, and handles duplicate submissions.
      *
      * @param quizId the identifier of the quiz for which the answer is being submitted
-     * @param userId the identifier of the user submitting the answer
+     * @param username the username of the user submitting the answer
      * @param answer the answer provided by the user
      * @return the saved {@code Submission} entity containing details of the answer submission
      * @throws QuizNotFoundException if the quiz with the given ID does not exist
-     * @throws UserNotFoundException if the user with the given ID does not exist
-     * @throws QuizClosedException if the quiz is not open or outside its allowed submission window
+     * @throws UserNotFoundException if no user with the given username exists
+     * @throws QuizClosedException if the quiz is not open for submissions
      * @throws DuplicateSubmissionException if the user has already submitted an answer for the quiz
-     * @throws DataIntegrityViolationException if there is a violation of database constraints
+     * @throws DataIntegrityViolationException if there is a violation of database constraints other than duplicate submission
      */
     @Transactional
-    public Submission submitAnswer(Long quizId, Long userId, String answer) {
+    public Submission submitAnswer(Long quizId, String username, String answer) {
 
         Quiz quiz = quizRepository.findById(quizId).orElseThrow(() -> new QuizNotFoundException(quizId));
 
-        User user = userRepository.findById(userId).orElseThrow(() -> new UserNotFoundException(userId));
+        User user = userRepository.findByUsername(username).orElseThrow(() -> new UserNotFoundException(username));
 
         validateQuizAvailability(quiz);
 

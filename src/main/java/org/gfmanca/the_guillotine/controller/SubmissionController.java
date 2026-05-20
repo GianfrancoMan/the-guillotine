@@ -8,6 +8,7 @@ import org.gfmanca.the_guillotine.dto.WinnerResponseDto;
 import org.gfmanca.the_guillotine.service.SubmissionService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -38,9 +39,12 @@ public class SubmissionController {
      *         of the created submission. The HTTP status code will be {@code 201 CREATED}.
      */
     @PostMapping
-    public ResponseEntity<SubmissionResponseDto> submitAnswer(@Valid @RequestBody SubmissionRequestDto request) {
+    public ResponseEntity<SubmissionResponseDto> submitAnswer(
+            @Valid @RequestBody SubmissionRequestDto request,
+            Authentication authentication) {
 
-        Submission submission = submissionService.submitAnswer(request.quizId(), request.userId(), request.answer());
+        String username = authentication.getName();
+        Submission submission = submissionService.submitAnswer(request.quizId(), username, request.answer());
 
         SubmissionResponseDto response = mapToDto(submission);
 

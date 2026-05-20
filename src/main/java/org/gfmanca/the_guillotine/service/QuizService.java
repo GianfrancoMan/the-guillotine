@@ -3,6 +3,7 @@ package org.gfmanca.the_guillotine.service;
 import org.gfmanca.the_guillotine.domain.entity.Quiz;
 import org.gfmanca.the_guillotine.domain.enums.QuizStatus;
 import org.gfmanca.the_guillotine.dto.QuizResponseDto;
+import org.gfmanca.the_guillotine.exception.QuizNotClosedException;
 import org.gfmanca.the_guillotine.exception.QuizNotFoundException;
 import org.gfmanca.the_guillotine.repository.QuizRepository;
 import org.springframework.stereotype.Service;
@@ -82,6 +83,10 @@ public class QuizService {
     public QuizResponseDto setCorrectAnswer(Long quizId, String correctAnswer) {
 
         Quiz quiz = getQuizOrThrow(quizId);
+
+        if(quiz.getStatus() != QuizStatus.CLOSED) {
+            throw new QuizNotClosedException(quizId);
+        }
 
         quiz.setCorrectAnswer(correctAnswer.trim().toLowerCase());
 

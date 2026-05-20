@@ -22,7 +22,6 @@ import jakarta.validation.constraints.Size;
  */
 public record SubmissionRequestDto(
         @NotNull Long quizId,
-        @NotNull Long userId,
         @NotBlank @Size(max = 100) String answer) {
 
 }

@@ -1,48 +1,74 @@
 package org.gfmanca.the_guillotine.integration;
 
 import org.gfmanca.the_guillotine.domain.entity.Quiz;
-import org.gfmanca.the_guillotine.domain.entity.User;
 import org.gfmanca.the_guillotine.domain.enums.QuizStatus;
+import org.gfmanca.the_guillotine.dto.AuthenticationRequestDto;
+import org.gfmanca.the_guillotine.dto.SubmissionRequestDto;
+import org.gfmanca.the_guillotine.dto.UserResponseDto;
 import org.gfmanca.the_guillotine.repository.QuizRepository;
 import org.gfmanca.the_guillotine.repository.SubmissionRepository;
 import org.gfmanca.the_guillotine.repository.UserRepository;
+import org.gfmanca.the_guillotine.service.AuthenticationService;
 import org.gfmanca.the_guillotine.service.SubmissionService;
+import org.gfmanca.the_guillotine.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-
+import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
-@SpringBootTest
+@SpringBootTest(
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = {
+                // Ensure these match the exact keys expected by your JwtService/SecurityConfig
+                "security.jwt.secret=Z2ZtYW5jYS10aGUtZ3VpbGxvdGluZS1qd3Qtc2VjcmV0LWtleS0yMDI2",
+                "security.jwt.expiration=3600000"
+        }
+)
+@AutoConfigureMockMvc
 @Testcontainers
+@ActiveProfiles("test")
 class SubmissionConcurrencyIntegrationTest {
+
+    private static final String PASSWORD = "Password123!";
 
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16");
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
-
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
-
         registry.add("spring.datasource.username", postgres::getUsername);
-
         registry.add("spring.datasource.password", postgres::getPassword);
     }
 
+    @Autowired
+    private MockMvc mockMvc;
+    @Autowired
+    private ObjectMapper objectMapper;
+    @Autowired
+    private UserService userService;
+    @Autowired
+    private AuthenticationService authenticationService;
     @Autowired
     private SubmissionService submissionService;
     @Autowired
@@ -55,43 +81,35 @@ class SubmissionConcurrencyIntegrationTest {
 
     @BeforeEach
     void setup() {
-
         submissionRepository.deleteAll();
         userRepository.deleteAll();
         quizRepository.deleteAll();
 
         quiz = new Quiz();
-
         quiz.setName("Concurrency Quiz");
         quiz.setStatus(QuizStatus.OPEN);
-
         quiz = quizRepository.save(quiz);
     }
 
     @Test
     void shouldHandleConcurrentSubmissionsCorrectly() throws Exception {
-
         int totalUsers = 100;
-        List<User> users = new ArrayList<>();
+        List<AuthenticatedUser> users = new ArrayList<>();
 
         for (int i = 0; i < totalUsers; i++) {
-            User user = new User();
-            user.setUsername("user_" + i);
-            users.add(userRepository.save(user));
+            users.add(createAuthenticatedUser("user_" + i));
         }
 
         ExecutorService executorService = Executors.newFixedThreadPool(20);
-
         CountDownLatch latch = new CountDownLatch(1);
-
         List<Future<?>> futures = new ArrayList<>();
 
-        for (User user : users) {
+        for (AuthenticatedUser user : users) {
             futures.add(executorService.submit(() -> {
-                        latch.await();
-                        submissionService.submitAnswer(quiz.getId(), user.getId(), "rome");
-                        return null;
-                    }));
+                latch.await();
+                submitAnswer(user.token(), "rome");
+                return null;
+            }));
         }
 
         latch.countDown();
@@ -108,25 +126,24 @@ class SubmissionConcurrencyIntegrationTest {
 
     @Test
     void shouldAllowOnlyOneSubmissionPerUserUnderConcurrency() throws Exception {
-        User user = new User();
-        user.setUsername("duplicate_test_user");
-        user = userRepository.save(user);
+        @SuppressWarnings("unused")
+        AuthenticatedUser user = createAuthenticatedUser("duplicate_test_user");
 
         int concurrentRequests = 50;
         ExecutorService executorService = Executors.newFixedThreadPool(20);
         CountDownLatch latch = new CountDownLatch(1);
-
         List<Future<?>> futures = new ArrayList<>();
-        for (int i = 0; i < concurrentRequests; i++) {
-            User finalUser = user;
-            futures.add(executorService.submit(() -> {
-                        latch.await();
-                        try {
-                            submissionService.submitAnswer(quiz.getId(), finalUser.getId(), "rome");
-                        } catch (Exception ignored) { }
 
-                        return null;
-                    }));
+        for (int i = 0; i < concurrentRequests; i++) {
+            futures.add(executorService.submit(() -> {
+                latch.await();
+                try {
+                    submitAnswer(user.token(), "rome");
+                } catch (Exception ignored) {
+                    // Expected for duplicate concurrent submissions.
+                }
+                return null;
+            }));
         }
 
         latch.countDown();
@@ -143,29 +160,25 @@ class SubmissionConcurrencyIntegrationTest {
 
     @Test
     void shouldReturnEarliestCorrectSubmissionUnderConcurrency() throws Exception {
-        List<User> users = new ArrayList<>();
+        List<AuthenticatedUser> users = new ArrayList<>();
 
         for (int i = 0; i < 20; i++) {
-            User user = new User();
-            user.setUsername("winner_user_" + i);
-            users.add(userRepository.save(user));
+            users.add(createAuthenticatedUser("winner_user_" + i));
         }
 
-        /* First send some incorrect answers sequentially*/
-        submissionService.submitAnswer(quiz.getId(), users.get(0).getId(), "milan");
-        submissionService.submitAnswer(quiz.getId(), users.get(1).getId(), "paris");
+        submitAnswer(users.get(0).token(), "milan");
+        submitAnswer(users.get(1).token(), "paris");
 
-        /* Concurrent correct answers*/
         ExecutorService executorService = Executors.newFixedThreadPool(10);
         CountDownLatch latch = new CountDownLatch(1);
         List<Future<?>> futures = new ArrayList<>();
-        List<User> correctUsers = users.subList(2, 10);
+        List<AuthenticatedUser> correctUsers = users.subList(2, 10);
 
-        for (User user : correctUsers) {
+        for (AuthenticatedUser user : correctUsers) {
             futures.add(executorService.submit(() -> {
-                        latch.await();
-                        submissionService.submitAnswer(quiz.getId(), user.getId(), "rome");
-                        return null;
+                latch.await();
+                submitAnswer(user.token(), "rome");
+                return null;
             }));
         }
 
@@ -177,19 +190,34 @@ class SubmissionConcurrencyIntegrationTest {
 
         executorService.shutdown();
 
-        /* Set correct answer */
         quiz.setCorrectAnswer("rome");
         quizRepository.saveAndFlush(quiz);
 
-        /* Resolve winner*/
-
         var winner = submissionService.findWinner(quiz.getId());
-
-        /* Verify winner is truly the earliest correct stored submission*/
-
         var expectedWinnerSubmission =
-                submissionRepository.findFirstByQuizIdAndAnswerOrderBySubmittedAtAscIdAsc(quiz.getId(), "rome").orElseThrow();
+                submissionRepository.findFirstByQuizIdAndAnswerOrderBySubmittedAtAscIdAsc(quiz.getId(), "rome")
+                        .orElseThrow();
 
         assertThat(winner.winnerUserId()).isEqualTo(expectedWinnerSubmission.getUser().getId());
+    }
+
+    private AuthenticatedUser createAuthenticatedUser(String username) {
+        UserResponseDto user = userService.createUser(username, PASSWORD);
+        String token = authenticationService
+                .authenticate(new AuthenticationRequestDto(username, PASSWORD))
+                .token();
+        return new AuthenticatedUser(user.id(), user.username(), token);
+    }
+
+    private void submitAnswer(String token, String answer) throws Exception {
+        SubmissionRequestDto request = new SubmissionRequestDto(quiz.getId(), answer);
+
+        mockMvc.perform(post("/api/submissions")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request))); // Changed to objectMapper
+    }
+
+    private record AuthenticatedUser(Long id, String username, String token) {
     }
 }

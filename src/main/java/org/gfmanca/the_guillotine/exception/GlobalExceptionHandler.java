@@ -56,6 +56,18 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * handles attempts to set the correct answer made before the quiz closes.
+     *
+     * @param ex the thrown quiz-closed exception
+     * @return a 403 Forbidden error response
+     */
+    @ExceptionHandler(QuizNotClosedException.class)
+    public ResponseEntity<?> handleQuizNotClosed(QuizNotClosedException ex) {
+
+        return buildErrorResponse(HttpStatus.FORBIDDEN, ex.getMessage());
+    }
+
+    /**
      * Handles duplicate quiz submissions by the same user.
      *
      * @param ex the thrown duplicate-submission exception
