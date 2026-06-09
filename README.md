@@ -2,6 +2,8 @@
 
 A backend system for a real-time competitive quiz platform inspired by TV game shows, where users submit a single-word answer within a short time window, and the system determines the first correct submission in a fair and deterministic way.
 
+## Since June 26th, I have decided to use this project to explore Claude's integrations on GitHub.
+
 ---
 
 ## 🚀 Project Goal
